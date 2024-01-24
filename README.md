@@ -186,6 +186,19 @@ Terminology:
  - Create Pipeline and run it
  - Check in EC2 Instances and you'll see it pop up with the test
 
+### Using AMIs in a different Region
+There are different things to take into account when treating with Amazon Machine Images (AMI)
+#### Encription and Copying
+ | Scenario | Supported |
+ |----------|-----------|
+ |Unencrypted AMI to unencrypted AMI|Yes|
+ |Encrypted AMI to encrypted AMI|Yes|
+ |Unencrypted AMI to encrypted AM|Yes|
+ |Encrypted AMI to unencrypted AMI|**No**|
+
+ if no encryption specification is given, then it will inherit the encryption of the original one
+
+ If you want to use an AMI in a different region, you have to create a copy and select the desired region, you can choose the encryption but you cannot remove it
 
 # RDS
 the service for creating relational data bases with transactions\
@@ -333,3 +346,269 @@ They can also rotate every 30,60,90 or custom # of days, a lambda needs to be cr
  - Configuration Variables 
  - License Keys
  - **For Configuration informations**
+
+# S3 
+its the service for:
+ - Object Storage
+ - Scalable
+ - Unlimited storage
+ - Simple use and low cost
+ - Manage data as objects rather than data blocks
+ - Max of 5TB objects
+
+All AWS accounts share the S3 namespace, so the name must be globally unique. Here is the format of S3 URL:\
+https://**bucket-name**.s3.**Region**.amazonaws.com/**key-name**
+
+After an Upload you'll always see a 200 success code using CLI or API
+
+S3 Characteristics are:
+ - Versioning
+ - Lifecycle Management, how you want your data to be kept in time
+ - Tiered Storage, different tiers to store your data in different scenarios
+
+### Objects
+each objects is made of:
+ - Key: the name/path of the file in the bucket
+ - Value: the object itself
+ - Version ID: for storing different versions of the same object
+ - Metadata: data about the data e.g. content-type, last-modified, etc.
+
+### Data Security
+ - Server-Side Encryption: to encrypt objects when they are stored in the bucket
+ - Access Control Lists (ACL): Define which AWS accounts or groups are granted access to the files
+ - Bucket Policies: specify what Actions are allowed or denied
+
+## Tiers of Storage
+### S3 Standard
+ - High Availability and Durability
+ - Designed for frequest access
+ - Suitable for most workloads
+ - e.g. websites, content distribution, mobile/gaming apps, BigData analytics
+ - Highest Cost
+
+### S3 Standard-Infrequent Access (S3-IA)
+ - when you need to access it couple times per month
+ - Rapid Access
+ - **You pay to access the data**
+ - e.g. long-term storage, backups, disaster recovery files
+ - Minimum storage duration: **30 days**
+#### S3 ONE ZONE Infrequent Access
+ - Costs 20% less than regular S3-IA
+ - For long-lived, **non-critical data**
+ - The data is ONLY available in ONE Availability Zone
+ - same as S3-IA in all other things
+### Glacier
+ - Long-term data archiving
+ - Retrieval times between 1 minute to 12 hours
+ - Minimum storage duration: **90 days**
+ - **You pay to access the data**
+ - e.g. historical data only accessed a few times per year
+### Glacier Deep Archive
+ - Archives that are rarely accessed
+ - Default extraction time of **12 hours**
+ - Minimum storage duration: 180 days
+ - **You pay to access the data**
+ - e.g. financial records that are accessed one or twice per year
+### S3 Intelligent Tiering
+It is cost-optimized, it changes depending on your access, however there is a minimum storage duration of **30 days**, it offers two tiers:
+ - frequent access
+ - infrequent access
+
+## Securing S3 Buckets
+When a bucket is created, it is by default private, only owned by you, and only you have access to do actions in it
+
+### Bucket Policies
+They are declared in a JSON with Actions, actions that are allowed, and Resources, the desired bucket(s) to apply the policy
+ - Applied at Bucket Level
+ - Not individual Objects
+ - Groups of Files
+ - Access Control Lists
+ - Grant access to objects
+ - Fine Grained Control
+#### S3 Access Logs
+By default is not activate but it can be enable it which will create a log of the different accesses and modifications in the bucket
+
+### S3 Bucket Policy Demo
+ - Go to create a bucket, give it a globally unique name
+ - Select the bucket, then Upload, select a file from local machine
+ - You can access the file by either _Open_ or going through _S3 Object URL_
+ - Go to Block public access and disable protection
+ - In Edit Bucket Policy, go to create policy, change for principal * for everything and Actions S3:getObject and the bucket ARN, then copy and add it to the bucket policy
+ - This should show public access to the bucket and objects
+ - Go to the _S3 Object URL_ again and anyone can see it
+
+### S3 as a static html server
+ - create a bucket, give it a name, deselect the block access policy
+ - Upload a index.html and an error.html to the bucket
+ - Go to Bucket properties and select WebServer, then static and put your index and error htmls
+ - Go to Bucket policies and create a policy where anyone can perform the action S3:GetObject and save it
+ - Go to the link from the created dns and see the index.html from the web browser
+
+## S3 Encryption
+it is important to encrypt data in order to protect the assets that are inside of it if the company policies demands it
+
+### Encryption Options
+ - Encrypt in Transit
+   - SSL/TLS
+   - HTTPS
+ - Encryption at Rest: Server-Side Encryption
+   - SSE-S3: S3 managed Keys (enabled by default)
+   - SS3-KMS: AWS KMS managed Keys
+   - SS3-C: Customer provided Keys
+ - Encryption at Rest: Client-Side Encryption
+   - You Encrypt the files before uploading them to S3
+
+### S3 Encryption Configuration Demo
+ - Create a Bucket, give it a name and then select the SSE-KMS option
+ - Create a KMS key, symmetric for encrypt and decrypt, give it a name
+ - Select a key admin user permission, then the usage user permission
+ - Back to the S3 refresh the KMS and select the key and create the bucket
+
+## S3 CORS
+CORS stands for Cross-Origin-Region-Sharing, it allows one bucket to access the files of another bucket
+
+### S3 CORS Configuration Demo
+use case scenario is we have 2 buckets, one will host index.html and the other will host loadpage.html; we're going to update the index file to reference the loadingpage file; test what happens; then configure CORS to allow this to work:
+ - Create an IndexBucket; give it a name, unblock the access for public, add the GetObject Policy, enable as Website and add the index.html and error.html
+ - Create a CorsBucket; give it a name, unblock the access for public, add the GetObject Policy, enable as Website and add the index.html and error.html BUT also upload the loadpage.html
+ - Given the CorsBucket URL, add the _/loadpage.html_, check it works and copy the new URL, change the IndexBucket index.html to redirect to the URL of the loadpage
+ - Check that it works by going to the website of the first bucket, click in the html that redirects to the other loadpage
+ - You'll see that you get an error in developper tools console in the browser because the Bucket has no access to another Bucket
+ - Go to the CorsBucket and edit the CORS, add a policy that allows the authorize, GetMethods and Origin the Website URL of the IndexBucket;
+ - Recheck the index of the first bucket to be able to see the other file from the other bucket
+
+## CloudFront
+A system of distributed servers which deliver webpages and other web contents. \
+It replicates your data in multiple servers around the world to reduce the latency when differents clients around the world want to use your data:
+ - Optimized to work with other AWS Web Services
+ - Integrated to S3, EC2, ELB and Route53
+ - Your Own Server
+
+### Edge Location
+is a group of servers in another location so when the client wants to get the data, the request goes first to the EdgeLocation, then to the CloudFront Origin of the data, then it caches the data in that EdgeLocation so when the second client wants the data, it will get it from the cache
+
+### CloudFront Distribution 
+Is the name given to the Edge Location with its configuration of the content we want to distribute
+
+### TTL
+Its the Time-To-Live of the cached object in the EdgeLocation, normally its configured for 1 day, which will delete the file after 1 day that is was cached.\
+If you change files in the Origin Bucket too often, it might be good to change the TTL to the same frequency as the change of the files
+
+### CloudFront & S3 Transfer Acceleration
+Enables fast, easy and secure transfers of files over long distances between your end users and an S3 Bucket
+
+### CloudFront Demo
+ - Create a Bucket, give it a name and select another AWS Region (the further the better), allow public access
+ - Select the Bucket and add policies for public GetObject
+ - Upload a big file like a >10mb image
+ - Use the URL of the object and open it, see how slow it is
+ - Go to CloudFront, create a distribution, select the Redirect the HTTP to HTTPs, select defaults for the rest
+ - You can Edit the geography location settings to allow/block certain countries
+ - Select the CloudFront URL and use the same Key for the object you want
+ - First time it will load slow because its caching for first time, then in another browser try the same URL and it will be way faster
+
+### CloudFront Origin-Access-Identity Configuration DEMO
+The idea of this demo is to remove the public read access from our bucket and then allow access only from the CloudFront URL:
+ - Create a Bucket, uncheck Block all public access, under Object Ownership choose ACLs enabled
+ - Choose a file to upload but just before, in upload permissions, select in Predefined ACLs the Grant public-read access option
+ - Create a CloudFront Distribution, select Origin Access control settings, click Create Control Setting
+ - Click Copy policy, then go to the Bucket and under Permissions in Policy section, click Edit, then paste in the bucket policy, save changes
+ - In the browser check access by going to the CloudFront URL/key of the object
+ - Go back to the bucket and in permissions change the access to block all public access
+ - This way we can still access the file with the CloudFront URL but not with the S3 Object URL
+
+### CloudFront Allowed Methods
+ - GET, HEAD
+ - GET, HEAD, OPTIONS
+ - GET, HEAD, OPTIONS, PUT, POST, PATCH, DELETE
+   - Consider restrincting access at your origin level to avoid users deleting certain objects from your origin
+
+use cases:
+|HTTP METHOD|DEFINITION|EXAMPLE|
+|-----|-----|-----|
+|GET|Read data|Read a web page|
+|HEAD|Inspect resource headers|Read a web page's header|
+|PUT|Send data to create a new resource or replace an existing one|Update data or change the status of a resource|
+|PATCH|Partially modify a resource|Modify the contents of a shopping cart|
+|POST|Insert data, user to create or update a resource|Comment on a blog post|
+|DELETE|Delete data|Remove your email address from a mailing list|
+|OPTIONS|Used to find out what other HTTP methods are supported by the given URL|Receive a list of supported HTTP methods|
+
+## Athena
+Allows to query the files in your S3 files using federated requests transforming the SQL queries into a S3 extract instruction
+ - Serverless: pay per query / per TB scanned
+ - Easy: no need to setup, no ETL
+ - Integrated: works directly on S3 data
+
+So when would it be useful?
+ - Query log files in stored S3
+ - Analyze AWS Cost and Usage reports
+ - Generate business reports
+ - Run queries on click stream data on S3
+
+### Athena Demo
+in this use case we will configure a Trail in CloudTrail to generate an audit log of all activity in our account; the logs will be sent to a S3; Use Athena and SQL to query the data stored in the S3:
+ - Go to CloudTrail and create one named _management-events_, check that managements events is checked and leave all by defaults
+ - The CloudTrail folder will start to populate after 5min, refresh and you'll see the logs
+ - Create another S3 Bucket to have a staging space to store the Athena results from the queries
+ - Go to Athena, query editor, edit settings and select the staging Bucket
+ - In the editor, run the query `CREATE DATABASE athenadb`
+ - Run the **Create Table Query** and then the **Query** from [here](https://github.com/ACloudGuru-Resources/course-aws-certified-developer-associate/tree/main/Athena_Demo), Remember to replace the S3 Bucket name with yours in the Location
+ 
+# Serverless Computing
+
+### Serverless 101
+many AWS services are serverless which means that it will automatically manage the Capacity Provisioning, Patching, Auto Scaling and High Availability.\
+This way the developer only needs to worry about writing the code he needs.
+
+It can give Competitive Advantage since it makes your process faster so Speed to Market, Super Scalable in case you need to make it stringer, Lower Costs since you're never over provisioned, Focus on Applications so that you spend the most time in building your application
+
+List of the Main Serverless Services:
+ - Lambda
+ - SQS
+ - SNS
+ - API Gateway
+ - DynamoDB
+ - S3
+
+## Lambda
+Allows to run code without provisioning any servers, it takes care of including the runtime environment, it can be used by different codes of different languages.
+
+Here are some of the features
+ - Requests: First million requests per month are free, then $0.20 per million requests
+ - Duration: charged by 1ms increments, also the memory allocated to the lambda
+ - Price per GB-second: $0.00001667 per GB/s, the first 400,000 GB/s per month are free
+
+### Event-Driven Architecture
+Lambda functions can be triggered by other Services, Events or User Requests through HTTP and API Gateway.
+
+Some of the Lambda Triggers are DynamoDB, Kinesis, SQS, Application Load Balancer, API Gateway, Alexa, CloudFront, S3, SNS, SES, CloudFormation, CloudWatch, CodeCommit, CodePipeline, Step Function
+
+## API Gateway
+Its the middle man between the client and the backend. An analogy is a restaurant with clients and the chefs, the server will be the API which will communicate the information between both parties, the order will be an HTTP request and the cooked food would be a JSON with information.
+
+API Gateway characteristics are:
+ - Publish, Mantain and Monitor APIs
+ - A Front Door, to allow a controlled access of data to another services
+ - Supported API Types
+   - RESTful APIs are optimized for staleless, serveless workloads
+   - Websocket APIs are for real-time, two-way, stateful communication e.g. chat apps
+ - Supports JSON
+ - Directs the traffic to the correct Lambda or Service for every request
+ - Supports multiple Endpoints and Targers
+ - Supports multiple Versions
+ - Integrates with CloudWatch for logging API Calls, latencies and error rates
+ - Throttling management so that backend is protected from traffic spikes and denial of service attacks
+ 
+### API Gateway Building a Serverless Website Demo
+the use case if to create a python lambda which will be connected to an API Gateway, then we will make an HTTP request which will Trigger the Lambda through the API Gateway
+ - Get all the resource materials from [here](https://github.com/ACloudGuru-Resources/course-aws-certified-developer-associate/tree/main/Serverless_Webite_Demo)
+ - Create a Lambda Function from scratch and leave all default
+ - Put the python code to the Function and Deploy it
+ - Add a Trigger, select API Gateway, select Create New with Open Security and check CORS and click Add
+ - Open the API Gateway URL and you'll see the response of the lambda in your browser
+ - Create a Bucket with ACLs enabled and Disable the Block all public access
+ - In Bucket properties go to Edit static website hosting and fill the info with index.html and error.html
+ - In the _index.html_ change the `xhttp.open("GET","____", true)` to the new API Gateway URL created, and Upload the two files _index.html_ and _error.html_ to the Bucket
+ - Go to the Bucket static website URL and you'll see the button which after the click will change the message in the page
+ 
