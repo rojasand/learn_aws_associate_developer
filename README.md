@@ -587,6 +587,8 @@ Some of the Lambda Triggers are DynamoDB, Kinesis, SQS, Application Load Balance
 ## API Gateway
 Its the middle man between the client and the backend. An analogy is a restaurant with clients and the chefs, the server will be the API which will communicate the information between both parties, the order will be an HTTP request and the cooked food would be a JSON with information.
 
+It has been improved to be able to import OpenAPI to get a configuration API right away.
+
 API Gateway characteristics are:
  - Publish, Mantain and Monitor APIs
  - A Front Door, to allow a controlled access of data to another services
@@ -599,6 +601,29 @@ API Gateway characteristics are:
  - Supports multiple Versions
  - Integrates with CloudWatch for logging API Calls, latencies and error rates
  - Throttling management so that backend is protected from traffic spikes and denial of service attacks
+
+### API Gateway Mock Integration
+you can create mock integration endpoints so that you can simulate the kind of response the Application Backend to allow developpement of the App independently, the mock endpoints are:
+ - CREATE
+ - TEST
+ - DEBUG
+
+### API Gateway Stage
+it references the lifecyle state of the API (dev, prod, etc..).\
+Each stage can be associated with a different endpoint.\
+**Stages Variables** are Key:Value pairs that act like environment variables so that you can change the behaviour of your API depending on them
+
+### API Gateway Request Transformation
+it allows to transform the requests as they are passing through the API Gateway in order to add, change or delete certain informations as needed
+
+### API Gateway Caching
+Allows to reduce the number of calls made to your endpoints by caching the result from requests, it uses by default a TTL of 300 seconds
+
+### API Gateway Account Level Throttling
+For preventing your API from being overwhelmed by too many requests
+ - Default limits of 10k requests per second per Region
+ - Concurrent requests, 5k requests across all APIs per Region
+ - 429 Error when too many requests
  
 ### API Gateway Building a Serverless Website Demo
 the use case if to create a python lambda which will be connected to an API Gateway, then we will make an HTTP request which will Trigger the Lambda through the API Gateway
@@ -611,4 +636,176 @@ the use case if to create a python lambda which will be connected to an API Gate
  - In Bucket properties go to Edit static website hosting and fill the info with index.html and error.html
  - In the _index.html_ change the `xhttp.open("GET","____", true)` to the new API Gateway URL created, and Upload the two files _index.html_ and _error.html_ to the Bucket
  - Go to the Bucket static website URL and you'll see the button which after the click will change the message in the page
+
+### Lambda Version Control
+As soon a Lambda is created it has a versio called `$LATEST` and lets say you need to update the Lambda, so the latest versio will be attached to it.\
+Keeping different type of versions is useful for:
+ - Multiple versions to keep backups
+ - Alias to point to specific version of the function code
+   - Important to change Aliases when new versions are updated and needed
+
+#### Lambda Version Control Demo
+ - Create a Lambda with latest Nodejs 
+ - Upload a first version of a code and deploy
+ - Test the Lambda
+ - In Actions, select public new version and give it a description, it will be VERSION 1 with a `:1` in the end of the ARN
+ - In Actions, select create Alias and give it name `prod` and version select 1
+ - Now the Lambda will have **Alias:Prod** and the ARN will have `:prod` in the end of the ARN
+ - Now we upload and updated version of the code, Deploy and Test it
+ - Check that the ARN is now normal without any suffix because it points to `$LATEST`
+ - Now publish a new versino from `$LATEST` and give it another description 
+ - The ARN will now have `:2` as suffix
+ - Create a new Alias called **Test** with the version 2
+ - The Lambda will now have **Alias:Test** and `:Test` as suffix of the ARN
+ - e.g. of a Alias ARN: arn:aws:lambda:**Region**:**Account**:function:**LambdaName**:**ALIAS**
+
+### Lambda Concurrent Executions
+It allows to limit how many executions of your function can happen in parallel, this is to enable throttling. The default limit is 1009 concurrent executions per second.\
+The **error 429 HTTP** is when your Lambda invocations are beign rejected because of the limit executions.\
+To raise the limit exexutions, you can contact AWS support.\
+**Reserved Concurrency** is a limit that guarantees a set number of concurrent executions are always available to a critical functions
+
+### Lambda And VPC Access Demo
+In this Use case, we have a Lambda that needs to access data from a EC2 or RDS that are inside a Security Group, which is inside a Private VPC, so the Lambda must have access to this VPC in order to have access; For this its important to have the **VPC**, **Subnets** and **Security Groups**:
+ - Create a VPC with subnets and Security Groups
+ - Create a Lambda, by default it only has the right to write in CloudWatch Logs
+ - Go to the Lambda Role and add the **AWSLambdaVPCAccessExecutionRole** permission
+ - By default there is no VPC in a Lambda, so edit and select the one you created before
+ - Now you will have access to the other resources
+
+### Lambda Ephemeral and Persistent Data Storage Patterns
+Lambda is stateless so it means that you cant keep any data, everything is ephemeral and it wont last more than 15min of execution, so to keep the data in a persistent way, you'll need to save it for example in a S3
+ - /tmp
+   - Temporary Storage
+   - Like a cached file system can be accessed by multiple invocations
+   - data is not persistent
+ - Additional libraries in your deployment zip file
+   - you have a package Lambda max size of 250mb
+   - it slows down deployment 
+ - Lambda Layers
+   - for Libraries and SDKs in best practice
+   - large dependencies
+   - better performance 
+   - Negative: you cant update your Layer, you must upload your new files and create a new layer
+ - S3
+   - Object Storage Only
+   - Cannot Append Data
+   - Every change of data creates a new version of it
+ - EFS (Elastic Fule System)
+   - Shared File System, persistent and can be dynamically updated
+   - Mountable, it can be mounted to other lambdas
+   - it must have SAME VPC as the Lambda
+
+### Lambda Environment Variables
+is a configuration which allows to set Key:Value items to be retrieved by the Lambda at execution, so this helps to abstract the critical information from being hard coded.\
+The Environment Variables are attached to a version so when updated, they will be erased
+
+### Other Lmabda Configurable Parameters
+ - VPC
+ - General Configuration
+ - Triggers
+ - Permissions
+ - Function URL
+ - Tags
+
+### Lambda X-RAY
+when Enabled, it allows to disect the different interactions of a lambda with the multiple services of AWS in order to see exactly the actions that are executed inside the Lambda and see the results and errors in a more understandable way
+
+### Lambda Invocation Lifecyle and Errors
+by default when a function returns an error, it will perform two retries, first it will wait one minute, then two minutes.
+
+#### Dead-Letter Queues (DLQs)
+its a Failure Handlign mechanism that holds failed events until they are retrieved using the Services SQS, SNS or Lambda Destinations.\
+For example if an invocation was successful it will send a message to a SQS, but if it failed it will send a message to SNS which will send an email to notify about the failure with a lot of information to understand the error
+  
+
+## Characteristics of Event-Driven Architecture
+ - Asynchronous: events and communication are connected via triggers but no response is expected or required
+ - Loosely Coupled: services and components operate and scale independently of each other
+ - Single-Purpose Functions: stateless functions performing a short-lived task
+ - AWS Services: are like building blocks
+ - Minimal Maintenance: AWS take care of upgrading and make your services reliable
+ - Best Practice: Avoid coding what AWS Services already proposes
+
+The normal architecture pipeline goes as following:\
+Event Source &rarr; Event Router &rarr; Event Destination\
+for example:\
+S3 Action &rarr; EventBridge Trigger &rarr; Lambda Execution
+
+### Banking Application Example Architecture
+
+API Gateway &rarr; Lambda Withdrawal &rarr; DynamoDB &rarr; EventBridge &rarr; A/B\
+A: &rarr; Lambda Overdraft Increase &rarr; SQS\
+B: &rarr; Lambda Overdraft Notification &rarr; SNS
+
+### Image Processing Example Architecture
+
+S3 UploadedImages &rarr; Lambda ImageProcessing &rarr; A/B\
+A: &rarr; S3 ProcessedImages &larr; CloudFront\
+B: &rarr; DynamoDB
+
+### Processing Streaming Data Example Architecture
+SocialMediaEvents &rarr; Kinesis Firehose &rarr; Lambda Data Processor &rarr; DynamoDB
+
+## Step-Functions
+Provides a visual interface for a serverless application, which later creates a State Machine to execute the app. It allows the orchestration and manage the logic of your application including:
+ - Sequencial Worflow DAG
+ - Error Handling
+ - Retry Logic
+
+#### Example for Parallel Steps
+Start &rarr; Process photo &rarr; IN\
+*IN &rarr; Extract Metadata &rarr; OUT*\
+*IN &rarr; Resize Image &rarr; OUT*\
+*IN &rarr; Facial Recognition &rarr; OUT*\
+OUT &rarr; Load in Database &rarr; End
+
+#### Branching Workfow
+Start &rarr; Trigger CodeBuild Build &rarr; Get Test Results &rarr; All Tests Passed? &rarr; A/B \
+&rarr; A &rarr; Notify Success &rarr; End\
+&rarr; B &rarr; Notify Failure &rarr; End
+
+### Step-Function Demo
+ - Create a Step-Function and select the Job Poller template with premade Lambdas
+ - Check the Open in a new browser tab and Start Execcution
+ - Check the Step Function, green are Tasks OK, blue are Tasks in progress and red are Tasks KO
+ - Check the Event Schedule
+
+### Comparing Step-Function Workflows
+#### Standard Workflows
+ - Long-Running, durable and auditable workflows that may run up to a year with 90 days history
+ - At-Most-Once Model where tasks are not repeated unless declared by the workflow
+ - Non-Idempotent Actions so when processing a payment, only one will be processed not multiple times
+#### Express Workflows
+ - Short-Lived up to 5 minutes for high-volumes or event-processing-type-workloads
+ - Idempotent like transforming input data and storing result in DynamoDB
+ - Concurrent executions in parallel
+ - Good if an Identical Request has no side effect
+ - Types:
+   - Asynchronous: an email, you send a message and you continue
+   - Synchronous: a conversation, each person takes turns to talk to continue the conversation
  
+
+## X-RAY
+You can use it with many AWS Services to see the all interactions of your applications, here is a list of some services:
+ - EC2
+ - ECS
+ - Lambda
+ - Elastic Beanstalk
+ - SNS
+ - SQS
+ - DynamoDB
+ - ELB
+ - API Gateway
+
+Integrate with your apps and use X-ray more dynamically on apps written in:
+ - Java
+ - Node.js
+ - .NET
+ - Go
+ - Ruby
+ - Python
+
+**It is necessary to have the X-RAY SDK and or X-RAY Daemon for the service to be able to capture the information and send it to X-RAY HTTP requests, for ECS run the X-RAY Daemon in its own docker**
+
+You can also personalize your X-ray annotations with Key:Value pairs in order for you to filter information as desired
