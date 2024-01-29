@@ -809,3 +809,179 @@ Integrate with your apps and use X-ray more dynamically on apps written in:
 **It is necessary to have the X-RAY SDK and or X-RAY Daemon for the service to be able to capture the information and send it to X-RAY HTTP requests, for ECS run the X-RAY Daemon in its own docker**
 
 You can also personalize your X-ray annotations with Key:Value pairs in order for you to filter information as desired
+
+
+# DynamoDB
+Fast and Flexible NoSQL Database, consistent and single-digit millisecond latency at any scale.\
+It is fully managed and it supports a Key:Value data models.\
+It supports the following Document Formats:
+ - JSON
+ - HTML
+ - XML
+
+It is great because it can interact with Lambdas and also it can also be Scalable. It offers different Features such as:
+ - Performance: SSD Storage
+ - Resilence: Spread accross 3 geographically distinct data centers
+ - Consistency: 2 leveles are offered:
+   - Eventually consistent reads (default): all copies of data reache the other data centers in a second **Best for red performance**
+   - Strongly consistent reads: a strongly consistent read always reflects all successful writes **Best for read consistency**
+ - ACID transactions: Atomic, Consistent, Isolated, Durable
+
+### DynamoDB Primary Keys
+
+#### Partition Key
+
+Its a unique attribute, the key is input to an internal hash function which determinesthe partition or physical location where the data is stored, **if used as primary key there cant be two same values**
+
+#### Composite Key
+
+ - Partition Key + Sort Key (e.g. forum posts): combination of User_ID + Timestamp (sort key)
+ - A Unique Combination 
+ - Storage of values as key
+
+### DynamoDB Secondary Index
+Query based on an attribute that is not the primary key using *global secondary indexes* and *local secondary indexes*.\
+A secondary index allows you to perform fast queries on specific columns in a table rather than on the entire dataset.\
+It can only be created when you're creating the DynamoTable, you cannot add, remove or modify later, However:
+ - Local Seconday Index
+   - Same partition key and different sort key to your table
+   - Must be created when you create your table
+ - Global Secondary Index
+   - Different partition key and fifferent sort key to your table
+   - Can be created any time
+
+### DynamoDB Scan vs Query
+ - Query: You can query exactly what you need
+   - More efficient
+   - Removes unwanted data
+ - Scan: Scans the entire data for the conditions you've entered
+   - Takes more time the bigger the table becomes
+   - Can use up the provisioned throughput for a large table in a single operation
+Good practice advice is to always limit the amount of data extracted, by setting the page-size parameter
+
+### DynamoDB API Calls
+Its a programmatically approach to interact with DynamoDB, for example, the AWS CLI commands actually calls the Dynamo API to interact with the Service. **It is important to remember that you can set AMI permissions to allow certain actions to be executed on your DynamoDB**:
+| AWS CLI COMMAND | USAGE |
+| ------ | ------ |
+|create-table|**Creates** a new table|
+|put-item|Adds a **new** item into a table or **replaces** an old item with a new one|
+|get-item|Returns a set of **attributes for an item** with the given primary key|
+|update-item|Allows you to **edit** the attributes of an existing item (e.g. **add or delete** attributes)|
+|update-table|Used to **modify** a table (e.g. modify the provisioned throughput settings of the table)|
+|list-tables|Returns a **list og tables** in your account|
+|describe-table|Returns **information about** the table|
+|scan|Reads every item in a table and returns **all items** and attributes. Use `FilterExpression` to return fewer items|
+|query|Queries the table based on a **partition key** value that you provide|
+|delete-item|Allows you to delete an item based on its **primary key**|
+|delete-table|**Deletes** a table including all of its items|
+
+### DynamoDB Access Control
+ - IAM
+ - IAM Permissions
+ - IAM Roles
+ - Restricting User Access: using IAM condition to restrict user access to only their own records (e.g. Mobile Games where a player needs to see his score or items but not other players info)
+   - Using the `dynamodb:LeadingKeys` permission policy allows users to access only the items where the partition key value matches their User_ID
+
+### DynamoDB Provisioned Throughput
+DynamoDB is measured in **Capacity Units**:
+ - Specify Requirements: at the creation of the table you can specify the amount you need for reading or writing capacity
+ - Write Capacity Units: 1 write capacity unit = 1Kb write per second
+ - Read Capacity Units: 1 read capacity unit = 1 strongly consistent read of 4KB per second **OR** 2 eventually consistent reads of 4kb per second (**default**)  
+
+To calculate how much you need just do:
+1. divide the size of an item by the kb of the Capacity Unit
+1. round up to the nearest integer
+1. multiply by action per seconds
+1. in Reading, if not consistent then divide by 2
+
+### DynamoDB On-Demand Capacity
+It can instantly scales up and down based on the activity of your application, great for Unpredictable workloads, New applications you dont know the use pattern yet or When you want to pay for what you use.
+
+### DynamoDB Accelerator (DAX)
+Fully managed, clustered in-memory cache for DynamoDB. Delivers up to a 10x read performance improvement. Microsecond performance for millions of requests per second. Great for Read-Heavy Workloads:
+ - Auctions applications
+ - Gaming
+ - Retail sites during BlackFriday
+
+For writing, it writes the operations directly to the Cache DAX Cluster and also to the DynamoDB at the same time.
+
+### DynamoDB Streams
+Streams are the Logs or Time Ordered Sequences to keep a backup of operations that have been executed in the DB. It has a dedicated endpoint for access and its useful for Audits or archive transactions. They are saved in near real-time and they can last for 24h.\
+Great for Lambda Event Source, so that it can trigger Lambdas based on events that happened in the DynamoDB.
+
+### DynamoDB Provisioned Throughput Exceeded
+If the Reads or Write request rate is too high, you can set up an **Exponential Backoff** in order to increase the amount of time between every retry attempt. In AWS CLI it will automatically retry until successful.
+
+So keep in mind if you get a `ProvisionedThroughputExceededException`, which means that there are too many requests. If after 1 minute this doesn't work, your request size may be exceeding the throughput for your read/write capacity.
+
+### DynamoDB Create a Table Demo
+In this demo the use case is to create an IAM User with DynamoDB access, create an EC2 instance for AWS CLI configuration, then the creation of a DynamoDB Table:
+ - In IAM create a new user called "dynamoDBAdmin" with permission policy **AmazonDynamoDBFullAccess**
+ - Once created, retrieve the Access Key ID and the Secret Access Key to configure the AWS CLI (you can download the info as csv)
+ - In EC2 create a new instance, check that Auto-assign Public IP is enabled to be able to ssh, in User Data lets add: 
+ ```
+ #!/bin/bash
+ yum update -y
+ yum install git -y
+ ```
+ - Create a new key pair for SSH and finish the creation of the instance
+ - In your local machine, find the downloaded `.pem` file for accessing the EC2 machine in ssh, perform `chmod 400 KEY_NAME.pem`
+ - SSH into the machine `ssh ec2-user@EC2_PUBLIC_IP -i KEY_NAME.pem`
+ - Now configure the AWS CLI using the User Access Key and Secret Key
+ - copy paste the [command to create the S3 table](https://github.com/ACloudGuru-Resources/course-aws-certified-developer-associate/blob/main/Create_A_DynamoDB_Table_Demo/DynamoDB_Commands.txt) to the command line
+ - Add [new items](https://github.com/ACloudGuru-Resources/course-aws-certified-developer-associate/blob/main/Create_A_DynamoDB_Table_Demo/items.json) into the Dynamo table by using git `git clone https://github.com/ACloudGuru-Resources/course-aws-certified-developer-associate.git` and find the `Create_A_DynamoDB_Table_Demo/items.json`
+ - Using AWS CLI we can add them to DynamoDB `aws dynamodb batch-write-item --request-items file://items.json` 
+ - You should receive the output `"UnprocessedItems":{}` which means everything went OK
+ - Check an iteù from the table `aws dynamodb get-item --table-name ProductCatalog --region us-east-1  --key '{"Id":{"N":"403"}}'`
+ - Access the AWS Console DynamoDB interface, and in Tables select your new table and *Overview* and then *Items*
+ - Go to Create Item, append a Description, Price, Color, Size, ProductCategory and Save, check the new item
+ - Run a Query with an ID number 403 and see you result, also a Scan to see the results
+ - End by Deleting the Table
+
+### DynamoDB TTL Demo
+Its for the configuration of the TimeToLive of data in your DynamoDB, this way it will marked for deletion one its time expires. It uses **Epoch Time** to the creationTime and TTL
+ - Enable IAM DynamoDBFullAccess to the user you'll use
+ - [Create a table and populate it](https://github.com/ACloudGuru-Resources/course-aws-certified-developer-associate/tree/main/DynamoDB_TTL_Demo)
+ - Check the Items, and then select the **Enable TTL**
+ - While configuring the TTL, you can choose the condition and check the Preview
+
+# KMS and Encryption in AWS
+Key Management Service makes it easier to encrypt in AWS when dealing with sensitive information:
+ - Managed Service: makes it easy to create and control the encryption keys
+ - Integrated: many AWS Services are compatible with KMS and it can be enabled by just checking a box
+ - Simple: easy encryption with the keys that you manage
+
+One type of key is called a CMK, Customer Master Key, which can encrypt/decrypt data **up to 4kb**.
+
+The other type of key is called Data Key, which allows for encryption of a bigger amount of data, this encryption is also known as **Envelope Encryption**.
+
+### KMS Envelope Encryption
+**Encryption for data >4kb** where the data is encrypted with the CMK, then the encryption key is also encrypted and put together with the data.
+
+Therefore for Decryption, the data is envelopped with the Data Key and so the CMK allows to decrypt the DataKey and then with it, decrypt the Data.
+
+Encryption of data using the CMK directly because:
+ - Network: when you encrypt data directly with KMS it must be transferred over the network
+ - Performance: with envelope encryption, only the data key goes over the network, not your data
+ - Benefits: the data key is used locally in your application, so it avoids the needs to transfer large amounts of data to KMS
+
+### KMS Key Rotation
+It allows to automatically rotate the key every year, in order to make sure that one same key doesnt have the power to decrypt all.\
+It saves **previous versions** of the keys in order to decrypt the files that where previously encrypted
+
+### KMS Creation Demo
+How to create a KMS in AWS Console:
+ - In IAM, create a group and give it `AdministratorAccess`
+ - Create Users ***KeyManager*** and ***KeyUser*** and add them to the group we just created
+ - Go to KMS, then Customer Managed Keys, go with defaults, put an Alias, give Admin Permission to ***KeyManager***, Usage Permission to ***KeyUser*** and create the key
+ - Revise the Key Policy and finish
+
+# AWS Certificate Management (ACM)
+Its a service that allows to create and manage public and private Secure Socket Layers (**SSL**) / Transport Layer Security (**TLS**) certificates.
+
+Can be used with AWS Services like Elastic Load Balancing, CloudFront, API Gateway and web applications.
+
+### SSL TLS Certificates
+Are Digital certificates to verify the authenticity of a website, it enables a secure connection between visitors and the website.
+
+Theyre used during the encryption process to encrypt data in transit.\
