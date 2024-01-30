@@ -985,3 +985,230 @@ Can be used with AWS Services like Elastic Load Balancing, CloudFront, API Gatew
 Are Digital certificates to verify the authenticity of a website, it enables a secure connection between visitors and the website.
 
 Theyre used during the encryption process to encrypt data in transit.\
+
+# SQS Simple Queue Service
+It was the first public Service from AWS. Its main objective is to store received messages in a queue, then distribute them one by one to another Service for each message to the consumed in a specific way.
+
+For example, lets say you have an S3 bucket that will receive many new images, each new image will trigger a notification to invoke a Lambda which will create a message, e.g. JSON, and will be sent into a SQS. Later an EC2 will consumet the messages one by one, in this case, transforming the image into higher resolution which can take some time. So the SQS ensures that there is a list of files to treat and if there are more incoming, they will be added to the queue.
+
+It is a **pull-based system**, where the Service at the end of the SQS will pull for new messages to process. Each message is stored in the SQS, as soon as the end-point Service pulls the message, the message will be invisible and exclusive to the Service to be processed, if it takes too much time to process or if there is an error, then the message will become visible again to be processed later.
+
+SQS Is great for **Decoupling Application Components** when you have Services that work together in one sense, but one of them is way faster than the other and so make them more independent.
+
+Messages can be:
+ - XML
+ - JSON
+ - Unformatted text
+ - 256Kb in size
+ - Retention up to 14 days in the queue
+ - Default retention is 4 days
+
+### SQS Types
+ - Standard Queue: 
+   - Unlimited transactions
+   - Guarantee that a message will be delivered at least once
+   - Best-Effort Ordering
+ - FIFO Queue: 
+   - First-In-First-Out Delivery
+   - Exactly-Once Processing, **No chance of duplicates**
+   - 300 transactions per second (TPS)
+   - Same other capabilities as the Standard Queue
+
+### SQS Settings
+
+#### SQS Visibility Timemout
+Is the amount of time that the message is invisible in the SQS queue after a reader picks up a that message. Ideally the job will be processed before the visibility time out expires, and the message will be deleted from the queue. If the job is not processed within that time, the message will become visible again and another reader will process it. **Default is 30 seconds, Max is 12 hours**
+
+#### SQS Short Polling VS Long Polling
+ - Short Polling:
+   - Returns a response immediately even if the message queue is being polled is empty
+   - This can result in a lot of empty responses if nothing is in the queue
+   - You will still pay for these reponses
+ - Long Polling:
+   - Periodicaly polls the queue
+   - Doesnt return a response until a message arrives in the message queue or the long poll times out
+   - **Can save money**
+   - **Long Polling is generally preferable to Short Polling**
+
+#### SQS Delay Queues 
+ - Postpone delivery of new messages to a queue for a number of seconds
+ - Messages sent tot he Delay Queue remain invisible to consumers for the duration of the delay period
+ - D**efault delay is 0 seconds, maximum is 900**
+ - For Standard Queues, changing the setting will only affect the new messages arriving to the queue
+ - For FIFO Queues, this affects the delay of messages already in the queue 
+ - Use Case of adding a delay can be to allow for updates to your sales and stock control databases before sending a notification to a customer confirming an online transaction
+
+#### SQS Managing Large SQS Messages
+Best practice for managing large SQS messages using S3:
+ - For large SQS messages - **256Kb up to 2GB in size**
+ - Use S3 to store the message
+ - Use Amazon SQS Extended Client Library for Java to manage them
+ - (You'll also need the AWS SDK for Java) - provides an API for S3 bucker and object operations
+   - Specify that messages are always stored in Amazon S3 OR only messages >256Kb
+   - Send a message which references a message object stored in S3
+   - Get a message object from S3
+   - Delete a message object from S3
+
+# SNS Simple Notification Service
+Its a web service that makes it easy to set up, operate, and send notifications from the Cloud. Messages sent from an applicaiton can be immediately delivered to subscribers or other applications, This is considered a **Push-based system**. Here are some of the notifications that can be done:
+ - Push notifications to devices
+ - SMS and Email
+ - Trigger an AWS Service like a Lambda with a message payload
+
+It works using a **Pub-Sub model** which is a publish and subscribe model; Applications *PUBLISH* or *PUSH* messages to a *TOPIC*; Subscribers *RECIEVE* messages from a *TOPIC*; SNS will also format the message so that the messages appears in the correct format of the receiver (Android, iOS, HTTP, etc.).
+
+### SNS Durable Storage
+AWS Prevents SNS from being lost, all messages are published to SNS are stored redundantly across multiple Availability Zones.
+
+### SNS Benefits
+ - Instantaneous
+ - Simple with easy APIs and easy integration 
+ - Flexible message delivery over multiple transport protocols
+ - Inexpensive, pay-as-you-go with no up-front costs
+ - Easy to configure
+ - Manages Services with high availability and durability for production environment
+
+|SNS|SQS|
+|----|----|
+|Messaging Service|Mesasging Service|
+|SNS is push-based|SQS is pull-based|
+|Think push notifications|Think polling the queue for messages|
+
+# SES Simple Email Service
+For sending emails to a list of email addresses; SES can be used for incoming and outgoing mail, and it is not subscription-based, just email address based.
+
+|SES|SNS|
+|-|-|
+|Email messaging service|Pub/Sub messaging service; formats include SMS, HTTP, SQS, email|
+|Can trigger a Lambda function or SNS notification|Can trigger a Lambda function|
+|Can be used for both incoming and outgoing email|Can fanout messages to a large number of recipients|
+|An email address is all that is required to start sending messages|Consuemrs must subscribe to a topic to receive notifications|
+
+# Kinesis
+**A family of services** that enables you to collect, process, and analyze streaming data in real time.
+
+### Kinesis Streaming Data
+Data that is generated constinously by many sources in small sizes (kilobytes) and generally unformatted data like:
+ - Financial transactions
+ - Stock prices
+ - Game data
+ - Social media feeds
+ - Location-tracking data
+ - IoT sensors
+ - Clickstream data
+ - Log files
+
+### Kinesis Streams
+Its divided into **Data Streams** and **Video Streams** which allow to process data in real-time.
+
+#### Kinesis Data Streams
+Producers send data to Kinesis Streams and they can be kept in Kinesis Streams for a **default 24h or max 353day retention**; the data is first gathered in what are called **Shards** which are a **Sequence of data records** and provides a fixed unit of capacity:
+ - Five reads per second
+ - Max total read rate is 2MB per second
+ - 1000 writes per second
+ - Max total write rate is 1MB per second
+
+For consumers like the EC2 instance, the Kinesis Client Libraries allow for:
+ - Tracking and listing the number of shards and also new ones
+ - Ensures that for every Shard there is a **record processor**
+ - Manages the number of record processors relative to the number of shards & consumers
+ - For multiple consumers it will automatically load balance a portion of the processor to each instance
+
+For Best Practice:
+ - Ensure that the number of instances do not exceed the number fo shards (except for failure or standby purposes)
+ - One worker can process multiple shards
+ - CPU utilisation is what should drive the quantity of consumer instances you have **NOT** the number of shards
+ - Use an Auto Scaling group, and base scaling decisions on CPU load on your consumers
+
+#### Kinesis Video Streams
+Same as Data Streams but if it has **VIDEO** then it is strictly **VIDEO STREAMS**
+
+We can create consumers like EC2 machines, Lambdas, etc.. to treat the data and for example format it or clean it, then they can export the final data into a database service or S3  
+
+### Kinesis Data Firehose
+**Capture**, Transform and **Load** data streams into AWS data stores to enable near real-time analytics with BI tools.
+
+There is no data retention, the data is sent directly to S3 or you can configure for a Lambda to be the step before the S3 in order to transform the data before it is deposited
+
+### Kinesis Data Analytics
+Analyze, **Query**, and Transform streamed data in real-time using **Standard SQL**. Store the results in an AWS data store.
+
+It is a top layer Kinesis service which allows to analyze the data using SQL that comes from other Kinesis Services and store it in AWS (e.g. S3, Redshift, OpenSearch)
+
+# Elastic Beanstalk
+Deploy and Scale Web Applications:
+ - Supported Languages: Java, .NET, PHP, Node.js, Python, Ruby and Go
+ - Supported Platforms: Apache Tomcat, Docker
+ - Developer Benefits: Focus on writing code and not worrying on the infrastructure needed to run the application, auto Scaling!
+
+Elastic Beanstalk is also capable on creating all the necessary AWS Services declared for your application in order to create the necessary architecture, Health Monitoring is available for verying the status of your application.
+
+Finally, You are in administrative control of the AWS Resources and there is no additional charge, just the normal price of the used Services.
+
+### Elastic Beanstalk Update
+
+#### All at once 
+Deploys to all hosts concurrently, you will experience a total outage; Not ideal for mission-critical production systems.\
+If the update has errors, you'll have to rollback and redeploy the original version to all the instances.\
+Only useful for test or dev environment since its more quick to drop and create.
+
+#### Rolling 
+Deploys the new version in batches, each batch is taken out of service while the deployment takes place.\
+Your environment capacity will be reduced by the number of instances that are updating.\
+Not ideal for performance sensitive systems since your total performance capacity will lower while the update takes place which is longer, also if the new version is wrong the rollback will be slow too.
+
+#### Rolling With Additional Batch
+Launches an additional batch of instances, then deploys the new version in batches. This update method allows to keep the same performance since new instances are created, it also keeps some of the instances in the first version.\
+Great for keeping same performance while updating, never an outage moment.\
+In case of a bad update, then the rollback will take time and performance will decrease.
+
+#### Immutable 
+Deploys the new version to a fresh group of instances, health status are checked and then if all ok, it deletes the old instances.\
+So in case of a bad update, the old instances are kept and the bad ones erased.\
+Great for critical mission systems.
+
+#### Traffic Splitting 
+Installs the new version like Immutable deployment but it redirects only a percentage of the traffic towards the new versions for evaluation, useful for testing a new version before doing a full Update, also known as **Canary Testing**
+
+### Elastic Beanstalk Advanced
+
+#### Pre-Amazon Linux 2 Elastic Beanstalk Configuration Files
+ - Configuration File: define packages to install, creates Linux users, enable services and configure load balancers
+ - YAML or JSON files
+ - Constraints: file must have a `.config` extension and be inside a folder called `.ebextensions` in the top-level directory of your application source code bundle
+
+#### Amazon Linux 2
+ - Buildfile: commands that run for short periods, and then **exit** upon task completion
+   - the Buildfile must be in the **root** directory of your application source
+   - the format is `<process_name>:<command>`
+ - Procfile: **Long-running** application processes, like a command to start and run the application
+   - the Procfile must be in the root directoy of your application source
+   - the formant is `<process_name>:<command>`
+   - Elastic Beanstalk expects Procfile tasks to run **continuously**
+   - It **monitors** and **restarts** any processes that terminate
+ - Platform hooks: Custom script or executable files for Elastic Beanstalk to run at a **chosen stage** of the EC2 provisioning stage
+   - Stored in **dedicated directories** in your application source code
+   - `.platform/hooks/prebuild` files to run **before** it build, sets up, and configures the application and web server
+   - `.platform/hooks/predeploy` files to run **after** configuring the application and webserver but **before** it deploys to the final runtime location
+   - `.platform/hooks/postdeploy` files to run **after** everything else
+
+### Elastic Beanstalk RDS launching configuration
+
+#### Option 1: Launch RDS within Elastic Beanstalk
+ - If you terminate the environment, the database will also be terminated
+ - Good option for Dev and Test deployments, bad for production
+
+#### Option 2: Launch RDS outside of Elastic Beanstalk
+ - Allows to tear down the application environment without affecting the database instance
+ - Better for Production systems since the data will not be affected
+
+#### Connecting to an Outside Database
+ 1. An additional Security Group must be added to your environment Auto Scaling group
+ 1. You'll need to provide connection string information to your application servers using Elastic Beanstalk environment properties
+
+### Elastic Beanstalk Migration Application
+
+#### Migration Assistant Tool
+If you have for example a .NET application running on Windows servers in your data center and you want to **migrate** to AWS and run it in Elastic Beanstalk.
+
+**.NET Migration Assitant** (public repo) enables to migrate a **.NET** application or your **entire website** from Windows to AWS Elastic Beanstalk with Interactive PowerShell Utility
