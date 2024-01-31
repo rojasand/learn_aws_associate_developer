@@ -919,7 +919,7 @@ In this demo the use case is to create an IAM User with DynamoDB access, create 
  - In IAM create a new user called "dynamoDBAdmin" with permission policy **AmazonDynamoDBFullAccess**
  - Once created, retrieve the Access Key ID and the Secret Access Key to configure the AWS CLI (you can download the info as csv)
  - In EC2 create a new instance, check that Auto-assign Public IP is enabled to be able to ssh, in User Data lets add: 
- ```
+ ```bash
  #!/bin/bash
  yum update -y
  yum install git -y
@@ -1212,3 +1212,200 @@ Installs the new version like Immutable deployment but it redirects only a perce
 If you have for example a .NET application running on Windows servers in your data center and you want to **migrate** to AWS and run it in Elastic Beanstalk.
 
 **.NET Migration Assitant** (public repo) enables to migrate a **.NET** application or your **entire website** from Windows to AWS Elastic Beanstalk with Interactive PowerShell Utility
+
+# CI CD
+**Continuous Integration and Continuous Deployment**:
+ - Automatises the integration and deployment of the application when there are chagements in the code
+ - Manual changes are bad, they are prone to mistakes and makes it harder to detect and it cant scale up
+ - Small incremental changes so that it can be tested and debug in a more simple way
+ 
+### Continuous Integration Workflow
+ - Shared Code Repository were developers can share or merge code changes
+ - Automated Build when changes are detected in the code
+ - Automated Test of new changes in code to ensure quality
+### Continuous Delivery and Deployment Workflow
+ - Code is merged after successful tests, it integrates the master repository
+ - Manual decision, humans may be involved in the decision to deploy the code, **Continuous Delivery**
+ - Prepared for deployment, the code is buimt, tested and packaged for deployment
+ - Fully Automated, everything can be automated, even the decision for deployment, **Continuous Deployment**
+
+## CodeCommit 
+Centralized Code Repository, Source and Version Control of code, allows teams to collaborate on code and files of a project, **Continuous Integration**
+## CodeBuild
+Automated Build of code, it compiles and run tests, then packages the code that is ready to deploy, **Continuous Delivery**
+## CodeDeploy
+Automated Deployment, automates code deployment to any instance like EC2, Lambda and on-premises, **Continuous Delivery**.
+
+The **AppSpec File** is the configuration file used by EC2 and on-premises as YAML, and used by Lambda as YAML/JSON. Its structure is:
+ - version
+ - OS
+ - files: `/Scripts`, `/Config`, `/Source`
+ - hooks
+
+The Run Order for an in-place Deployment is:
+ 1. BeforeAllowTraffic: tasks to run on instances **before** they are de-registered with the Load Balancer
+ 1. AllowTraffic: register instances with a load balancer
+ 1. AfterAllowTraffic: tasks you want to run on instances **after** they are registered with a Load Balancer
+
+The Workflow steps are:
+ 1. Application Stop
+ 1. Download Bundle
+ 1. Before Install instructions
+ 1. Install
+ 1. After Install instructions
+ 1. Application Start
+ 1. Validate Service run tests
+
+## CodePipeline
+Manages the Workflow, end-to-end solution, build, test and deploy your application every time there is a code change, **Continuous Deployment**. There are two type of deployments, In-Place and Blue/Green.
+|In-Place|Blue/Green|
+|---|---|
+|Updates the existing instances one by one|Creates the same amount of instances but with the new version of code to work in parallel|
+|Capacity is reduced during deployment|No capacity reduction|
+|Lambda is not supported|Green instances can be created ahead of time|
+|Rolling back involves a re-deploy|Easy to switch between old and new|
+|Great when deploying the first time|You pay for 2 environments until you temrinate the old servers|
+
+The example CodePipeline Workflow is:
+ 1. CodePipeline: the workflow is defined and begins when there is a change detected in your source code
+ 1. CodeCommit: New source code appears in the repository
+ 1. CodeBuild: The code is compiled, tested and packaged
+ 1. CodeDeploy: The application is deployed into dev or prod environment
+
+## CodeArtifact
+A central repository that can be used by all your developers to obtain the correct version of the software packages required for their projects. (like python package Index or npm Registry).
+
+Artifacts can be:
+ - Documentation
+ - Compiled applications
+ - Deployable packages
+ - Libraries
+
+CodeArtifact allows to:
+ - Make Third-Party Software **available** for use
+ - IT leaders can make **approved** packages available, like those that are **supported**
+ - Developers know where to **find** approved packages and also **publish and share** their own packages
+
+A **CodeArtifact Domain** is declared with a **Repository** and an **Upstream Repository**.\
+The **Domain** has **External Connection** to the **Public Repo** to allow for new versions.
+
+# ECS Elastic Container Service
+Its the Service for managing Containers which are virtual operating environments. They are Standardized which everything the sofware needs to run their projects. Microservices applications can be created from containers in order to facilitate the Scaling according to demand.
+
+A DockerContainer has:
+ - Code
+ - Libraries
+ - Virtual Kernel
+
+Which is loaded by Docker in an Operating System which make your application:
+ - Highly Scalable
+ - Fault Tolerant
+ - Easy To Mantain
+
+ECS is a container orchestation service which supports Docker and Windows Containers. Its similar to Kubernetes but with deep integration with AWS services.
+
+ECS can run the containers in a **Cluster of Virtual Machines**, **Fargate for Serverless** or **EC2 for More Control**
+
+AWS Services which use ECS are:
+ - Amazon Sagemaker: for deploying and scaling machine learning models for training or prediction jobs
+ - Amazon Lex: uses deep learning to build conversational interfaces like chatbots
+ - Amazon.com: it runs on ECS
+
+### Elastic Container Registry ECR
+Is the public or private registry that contains all the images that are available in public, or the private ones that you upload to AWS.
+
+So ECS connects to ECR to pull the image that you choose, and then deploys the image in containers
+
+# CloudFormation
+Its purpose is to help manage, configure, and provision your AWS infrastructure as. Every resource is defined inside a CloudFormation template which then creates the architecture of the project. It supports YAML or JSON.
+
+The benefits are:
+ - Consistent, since its a configure file, there is no human error
+ - Quick and efficient, less time than doing it manually
+ - Version control, keep versions of your architecture and peer review your templates
+ - Free to use, just pay the resources created
+ - Manage updates, can be used to manages updates and dependencies
+ - Rolling Back, you can roll back to a previous state and delete the entire stack as well
+
+Things to remember about CloudFormation:
+ - Its Infrastructure as Code
+ - Parameters : for custom values
+ - Conditions : for privisioning resources based on conditions
+ - Resources : to list the resources to create
+ - Mapping : to create custom mappings like Region:AMI
+ - Transform : to reference code located in S3 for reusable snippets, also for reusing the SAM
+
+### CloudFormation Process
+ 1. Create the YAML/JSON Template
+ 1. Upload to CloudFormation using S3
+ 1. CloudFormation reads the template and makes API calls to create the resources
+ 1. CloudFormation Stack is the resulting set of resources created
+
+### CloudFormation Export Stack Values
+In order to make things easier between different stacks, for example, one stack creates a network VPC and Security Group and a RDS then a second stack will make use of those networks and RDS, so the first Stack can expose the ARN of the those created resources, so that the second Stack can import them to their CloudFormation Template.
+
+Inside the Template, there should be a `Output` Section with the Name of each Element you want to export and in the Key value `Export` write the `resourceID`:
+```json
+{
+  "Outputs": {
+    "PublicSubnet": {
+      "Description": "ID of the subnet",
+      "Value": {
+        "Ref": "PublicSubnet"
+        },
+      "Export": {
+        "Name": {
+          "Fn::Sub": "${AWS::StackName}-SubnetID"
+        }
+      }
+    }
+  }
+}
+```
+### CloudFormation Serverless Application Model SAM
+Define and provision serverless applications using CloudFormation
+ - `sam package` : Packages your application and uploads to S3
+ - `sam deploy` : Deploys your serverless app using CloudFormation
+
+### CloudFormation Nested Stack
+In the Template it is also possible to declare other templates/Stacks, this is helpful for making certain staks like modules to be reused.
+It is important to declare it inside your Template as:
+```yaml
+Resources:
+  Type: AWS::CloudFormation::Stack
+  Properties:
+    NotificationARNs:
+     - String
+    Parameters:
+     AWS CloudFormation Stack Parameters...
+    Tags:
+     - Resource Tag
+    TemplateURL: https://s3.amazon.com/.../template.yml
+    TimeoutInMinutes: Integer
+```
+## Cloud Development Kit CDK
+Allows for creation of Resources or Stacks using a **programming language** like Python, Go, etc..
+
+### Process
+ 1. `cdk init` inside an empty directory
+ 1. `npm run build` to compile the app
+ 1. `cdk synth` to create the CloudFormation template
+ 1. `cdk deploy` to deploy the stack using CloudFormation
+
+### Deploy
+Applications and AWS Resources.
+
+### Define
+ - Apps: **Container** for one or more stacks
+ - Stacks: **Unit** of deployment
+ - Construct: Defines the AWS **Resources**
+
+### Synthesize
+CloudFormation Template creation, use the CDK to create a **CloudFormation Tempalte** from your code and deploy it.
+
+# Amplify
+Its a Service that allows **front-end deveopers** create a full stack application with managed Backend end Front end.
+ - Frontend Developers: create full-stack web and mobile applications on AWS
+ - Amplify Libraries: Integrate with Cognito, S3, Lambda and API Gateway to create a reliable backend
+ - Amplify Hosting: Dynamic/Static web hosting that integrates with your code repository for CI/CD 
+ - Amplify Studio: Simple visual tool used to confifure both front and back end of the application
