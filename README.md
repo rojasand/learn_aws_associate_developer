@@ -6,26 +6,120 @@ according to the website, for 24h per week of learning, the candidate is conside
 
 # IAM
 
-## Users
+### Users
 There are:
  - Users: which we can add specific policies
  - Groups: add users to one or multiple groups, each group having a set of permissions
  - Roles: Give a role to a service or person to have a set of permissions depending on their execution
 
- ## Login
- there exists:
+### Login
+there exists:
  - MultiFactorAuthentication
  - single URL login for the different users, all they need to do is go to the link and put their login and password
  - It is also possible to set rules to the passwords like complexity, length and expire time
 
- ## Best Practices
- Always give the least access possible to the different Users/Groups
- It is also recommended to add Users to a Group so that its easier to control many people at one
+### Best Practices
+Always give the least access possible to the different Users/Groups
+It is also recommended to add Users to a Group so that its easier to control many people at one
 
- # EC2
+## Cross-Account Access
+Delegate access to resources in different AWS accounts that you own.
 
- ## Pricing
- the pricing of the service EC2 depends on the type of demand:
+#### Manage Resources in Other Accounts
+Share resources in one account with users in a different account.
+
+#### IAM Role
+Create a role in one account to allow access and grant permissions to users in a different account.
+
+#### Switch Roles
+Switch roles within the AWS management console. No Password is required.
+
+#### Example Use Case
+A company has a Dev account and a Prod account. Developers need to get some production data in order to work on a new feature, they already have full Dev account permissions but it they would also need ReadOnly access to a S3 bucket in the Prod account.
+
+In the Dev account, create a Developers IAM Group, then the IAM Policy to allow reading S3 in the Prod account.\
+Follow by creating an IAM Role in Prod including the Account_ID of Dev that points to the IAM Policy in Prod.\
+Finally create an IAM Polcity in Dev that points towards the IAM Role of Prod.
+
+## Web Identity Federation
+Simplifies authentication and authorization for web applications:
+
+#### UserAccess to AWS Resources
+Users access AWS resources after successfully authenticating with a web-based identity provider like Facebook, Amazon or Google (a JWT is provided from the web-base identity provider to AWS).
+
+#### Authentication
+Following successful authentication, users receive an authentication code from the web ID provider.
+
+#### Authorization
+Users can trade this authentication code for temporary AWS security credentials, authorizing access to AWS resources.
+
+## Amazon Cognito
+Provides web ID federation, including sign-up and sign-in functionality for you applications, and access for guest users which **map to IAM Roles**:
+ - **Identity Broker**: manages authentication between your app and webID providers
+ - Multiple Devices: synchonizes user data for multiple devices
+ - **Recommended for Mobile**: best use for mobiles when calling AWS services
+
+#### User Pools
+User directories used to manage sign-up and sign-in functionality for mobile and web applications.
+
+#### Sign-in
+Users can sign-in directly to the User Pool, or using Facebook, Amazon or Google (a JWT is provided from the web-base identity provider to AWS).
+
+#### Identity Pools
+Identity Pools enable you to provide **temporary AWS credentias**. Enabling access to AWS services like S3 or DynamoDB
+
+### Cognito Push Synchronization
+ - Devices: cognito tracks the association between the user identity and the varios devices he uses
+ - Seamless: it  upddates and synchronizes user data across multiple devices
+ - SNS Silent Notification: SNS notification to all devices associated with a given user identity whenever data stored in the cloud changes
+
+## AWS Policies
+
+### AWS Managed Policies
+An IAM policy created and administered by AWS like `AmazonS3FullAccess`:
+ - Assign appropiate permissions to your users without having to write the policy yourself
+ - Attach to multiple users, groups or roles in the same AWS account or across different accounts
+ - You cannot change the permissions defined in an AWS managed policy
+
+### Customer Managed Policies
+
+#### Created by You
+A standalone policy that you create and administer inside your own AWS account. You can attach this policy to multiple users, groups, and roles within your own account.
+
+#### Copy an Existing Policy
+In order to create a customer managed policy, you can copy an existing AWS managed policy and customize it to fit the requirements of your organization.
+
+#### Your Needs
+Recommended for use cases where the existing AWS managed policies dont meet the needs of your environment.
+
+### Inline Policies 
+
+#### 1:1 Relationship
+There is a strict 1:1 relationship between the entity and the policy.
+
+#### Embedded
+When you delete the user, group, or role in which the inline policy is embedded, the policy will also be deleted
+
+#### Single User, Group or Role
+In most cases, **AWS recommends using managed policies over inline policies**; However it is useful when you want to have a sinle User, Group or Role.\
+The policy must not be inadvertently assigned to any other user, group, or role than the one for which it is intended.\
+The policy must only ever be attached to a single user, group or role.
+
+## Security Token Service STS AssumeRoleWithWebIdentity 
+
+#### STS API
+`assume-role-with-web-identity` is an API provided by STS (Security Token Service)
+
+#### Temporary Credentials
+Returns temporary security credentials for users authenticated by a mobile or web application or using a web ID provider like Amazon, Facebook, Google, etc... (a JWT is provided from the web-base identity provider to AWS)
+
+#### Web applications
+Regular web applications can use the `assume-role-with-web-identity` API. **For mobile applications Cognito is recommended**
+
+# EC2
+
+## Pricing
+the pricing of the service EC2 depends on the type of demand:
  - On demand: pay as much as you use
  - Reserved: you make a commitment of certains machines of certain type for a N amount of time (save money++), possibility to upgrade to higher machine
  - Spot: you use machines that are available at the moment and there is not so much demand so the price is less but if the demand is higher, you machine is terminated or freezes
@@ -1409,3 +1503,208 @@ Its a Service that allows **front-end deveopers** create a full stack applicatio
  - Amplify Libraries: Integrate with Cognito, S3, Lambda and API Gateway to create a reliable backend
  - Amplify Hosting: Dynamic/Static web hosting that integrates with your code repository for CI/CD 
  - Amplify Studio: Simple visual tool used to confifure both front and back end of the application
+
+# CloudWatch
+Is a **monitoring** service to monitor the health and performance of your AWS resources, as well as the application that you run on AWS, and in your own datacenter, the metrics are also stored indefinitely and can be retrieved after the resource has been terminated. It can monitor:
+ - Compute
+   - EC2 instances
+   - Auto Scaling Groups
+   - Elastic Load Balancers
+   - Route53 health checks
+   - Lambda
+ - Storage & Content Delivery
+   - EBS volumes
+   - Storage Gateway
+   - CloudFront
+ - Databases & Analytics
+   - DynamoDB tables
+   - ElastiCache nodes
+   - RDS instances
+   - Redshift
+   - Elastic Map Reduce
+ - Other
+   - SNS topics
+   - SQS queues
+   - API Gateway
+   - Estimated AWS charges
+
+### CloudWatch Agent
+Allows you to create your own metrics to measure.
+
+### CloudWatch Logs
+Allows you to monitor operating system and application logs
+
+### Cloudwatch and EC2
+All EC2 instances send key health and performance metrics to CloudWatch; by default they are:
+ - CPU
+ - Network
+ - Disk
+ - Status Check
+
+EC2 does not send operating system-level metrics to CloudWatch; However, it is possible to install the CloudWatch Agent in the EC2 instance, which allows to colelct operating system metrics and send them to CloudWatch:
+ - Memory Usage
+ - Processes running on the instance
+ - Amount of free disk space
+ - CPU idle time
+ - etc..
+
+#### EC2 CloudWatch Metric Frequency
+By default, EC2 sends metric data to CloudWatch in 5-minute intervals.
+
+For an additional charge you can enable detailed monitoring that sends metrics at 1-minute intervals.
+
+For custom metrics, the default is 1-minute intervals, and you can configure high resolution metrics that are sent at 1 second intervals.
+
+### Monitoring System and Application Logs
+
+#### Monitor Log Files
+Monitor and troubleshoot your applications using existing system and application log files.
+
+#### Customize For Your Application
+Monitor your logs in near-real time for specific phrases, values or patterns. **Requires the CloudWatch agent**
+
+#### Use Case
+Track the number of errors that occur in your application log and send yourself a notification whenever the rate of erros exceeds a threshold you specify.
+
+### CloudWatch Alarms
+
+#### Alarms
+This include EC2 CPU utilization, Elastic Load Balancer latency, or even the charges on your AWS bill.
+
+#### Thresholds
+You can set appropiate thresholds to trigger the alarms and actions to be taken if an alarm state is reacherd.
+
+#### Use Case
+You can set an alarm that sends you a notification or executes an Auto Scaling policy if CPU utilization exceeds 90% on your EC2 instance for more than 5 minutes
+
+#### Send Email using SNS Notificaiton topic
+You can create an Alarm and configure a topic and email senders where so that when the alarm triggers, the email users will receive an email specifying the error and resource that triggered it.
+
+## CloudWatch Concepts
+
+### CloudWatch Metrics
+A metric is a **variable** to **monitor**. Metrics are uniquely defined by a **name**, a **namespace**, and zero or more **dimensions**
+
+Metrics are in time-ordered **Sequence** of **values** or **data points**, which are published to CloudWatch
+
+Each **data point** in a metric has a **Timestamp**, an optionally, a unit of measurement.
+
+For example the CPU usage of an EC2 instance.
+
+### CloudWatch Namespaces
+A namespace is a **container** for CloudWatch **metrics**, for example, EC2 uses the **AWS/EC2** namespace; You can create your own namespaces to publish **custom metric** data.
+
+You must **specify** a namespace for **each data point or value** that you publish to CloudWatch.
+
+Specify the namespace name when **create** a metric.
+
+Metrics in **different** namespaces are **isolated** from each other.
+
+Metrics from different applications are **not aggregated** into the same statistics; With **Custom Namespaces** you can send metrics from **different applications** to different namespaces allowing you to **segregate** metrics collected from different applications.
+
+### CloudWatch Dimensions
+A **dimension** is like a **filter**. You can filter data by **Name:Value Pair**, also by **InstanceID** and also allows you to **aggregate** data across dimensions for some services (e.g. EC2).
+
+### CloudWatch Dashboard
+is a custom view, like a home page that you create in order to monitor what you want. So it helps for checking the health of your critical systems and applications, just select metrics that are important to you and add them to the dashboard.
+
+## CloudTrail
+Its for recording user activity in your AWS account, wether if its from the CLI or console, also record activity related to creation, modification or deletion of resources, and even failed authentification.
+
+Records API calls for your AWS account and delivers log files containing API calls to an S3 bucket. Which can be integrated with CloudWatch Logs to monitor any desired activity.
+
+### To remember between CloudWatch and CloudTrail
+|CloudWatch|CloudTrail|
+|--|--|
+|Monitors performance and metrics|Records API calls for you AWS account|
+|CloudWatch Logs|API activity history related to creation, deletion and modification of AWS resources|
+|CloudWatch Alarms|Do you need an audit log of user activity in your AWS account?|
+|Do you need to monitor the performance of AWS resources?||
+
+## CloudWatch Actions
+
+### CloudWatch API
+Supports a long list of different **actions**. These actions allow you to **Publish, Monitor and Alert** on a variety of metrics. These are particularly powerful when creating custom metrics for **monitoring and alerting** for your application.
+
+Two commonly used actions are **PutMetricData and PutMetricAlarm**
+
+#### PutMetricData
+```sh
+aws cloudwatch put-metruc-data \
+--metric-name PageViewCount \
+--namespace MyService \
+--value 25 \
+--timestamp 2022-01-30T12:00:00.000Z
+```
+
+#### PutMetricAlarm
+```sh
+aws cloudwatch put-metric-alarm
+--alarm-name PageViewMon \
+--alarm-description "PageView Monitor" \
+--metric-name PageViewCount \
+--namespace MyService \
+--statistic Average \
+--period 300 \
+--threshold 50 \
+--comparison-operator GreaterThanThreshold \
+--evaluation-periods 1
+```
+## CloudWatch Logs Insight
+Interactive query and analysis for data stored in CloudWatch Logs. Bespoke query language, query and filter logs directly, generate vizualisations.
+
+# EventBridge
+Is all about **event-driven architecture**. An event is a change in state and its used for triggering targets depending on the declared rules.
+
+Even though it sounds similar to CloudWatch Events, EventBridge is the **preferred way** to manage your events. CloudWatch Events and EventBridge are the **same underlying service** and API, but EventBridge provides more features.
+
+Changes you make in either CloudWatch or EventBridge will **appear in each console**.
+
+Use case: Your company requires that all EC2 instances have encrypted disks. AWS Config detects that somebody has created a new instance without encrypting the attached EBS volumes. An event is generated and sent to EventBridge, which triggers a rule that invokes an action to send you and email using SNS
+
+#### Scheduled Events
+EventBridge **rules** can also run on a schedule. e.g. Once an hour or day, or using a **cron expression**, we can set a rule to run at the same time on a specific day, week or month.
+
+# Recognizing Common HTTP Error Codes
+
+## Client-Side Errors
+### 4XX 
+|Error Code|Name|Meaning|
+|--|--|--|
+|400|Access Denied Exception|You dont have the required access|
+|403|Missing Authentication Token|The request did not contain a valid X.509 certificate or AWS access key ID|
+|404|Malformed Query String|The query string contains a syntax error or Object doesnt exist or file not found|
+## Server-Side Errors
+The request was valid, but the server was not able to fulfill it. This errors could appear also when there is really high traffic and the servers is having difficulty treating all the demand.
+### 5XX
+|Error Code|Name|Meaning|
+|--|--|--|
+|500|Internal Failure|The request failed due to an unknown error, exception or failure|
+|503|Service Unavailable|The request failed due to a temporary failure of the server|
+
+# Recognizing Common SDK Exceptions
+A **response to an error** that has occurred when processing an SDK or API request.
+
+### Common Exceptions `BatchGetItem`
+ - Returns details of **one or more items** from a DynamoDB table.
+ - Single Operation, **Limited** to up to 16MB of data and up to 100 items.
+ - If DynamoDB cannot return all the items, it returns a **partial result**, along with an exception.
+ - Either you requested **more than 100 items, more than 16Mb of data**, that exceeds the throughput og the table
+
+Examples:
+ |Exception|Meaning|
+ |--|--|
+ |`ValidationException`|**Too many items** requested for the `BatchGetItem` call; *Request **fewer** items*|
+ |`UnprocessedKeys`|If at least one item is successfully processed, you will receive a message that **some items** were not succesfully processed; *Redeuce the request size*|
+ |`ProvisionedThroughputExceededException`|No items were successfully processed, due to exceeding the **provisioned throughput** of the table; *Add capacity (e.g. add DAX)*|
+
+### Common Exceptions `BatchWriteItem`
+ - **Puts or deletes** one or more items in one or more DynamoDB tables
+ - Single Operation, limited to up to **16Mb** of data and up to **25** put or delete operations.
+ - Failed Operations, if any puts or deletes fail, DynamoDB returns a list of **UnprocessedItems**.
+
+Examples:
+ |Exception|Meaning|
+ |--|--|
+ |`UnprocessedItems`|Some of the operations failed. you will need to **retry** the unprocessed items.|
+ |`ProvisionedThroughputExceededException`|None of the put or delete operations were processed, due to exceeding the **provisioned throughput** of the table; *Increase the **write capacity** units on the table*|
